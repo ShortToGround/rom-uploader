@@ -265,6 +265,8 @@ uint16_t crc16_update(uint16_t crc, uint8_t n){
 int sendData(serial_com COM, uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
     //TODO: maybe pull the crc code blocks out into a function since they are copy and pasted for windows and linux ifdefs
     int output, i, j;
+    uint8_t sbuf[BUFFER_SIZE];
+
 
     uint8_t *outputBuf; // pointer to the output buffer, this is modified based on the data_packet_flag arg
     // if the DATA_PACKET_FLAG_OFF arg is used then we don't need an extra buffer and we can just send the bytes from the supplied s array  
@@ -273,7 +275,7 @@ int sendData(serial_com COM, uint8_t s[], uint8_t num_bytes, uint8_t data_packet
         if (data_packet_flag){
             // this is where the data is buffered before sending
             // the length byte is stored first, then the data, then the crc bytes at the end
-            uint8_t sbuf[BUFFER_SIZE];
+            
             outputBuf = sbuf;
             // First byte in the data chunk will be our data byte count
             sbuf[0] = num_bytes;
@@ -329,7 +331,6 @@ int sendData(serial_com COM, uint8_t s[], uint8_t num_bytes, uint8_t data_packet
         if (data_packet_flag){
             // this is where the data is buffered before sending
             // the length byte is stored first, then the data, then the crc bytes at the end
-            uint8_t sbuf[BUFFER_SIZE];
             outputBuf = sbuf;
             // First byte in the data chunk will be our data byte count
             sbuf[0] = num_bytes;
@@ -437,7 +438,7 @@ unsigned long recvData(uint8_t s[BUFFER_SIZE], serial_com COM, unsigned int numO
 int getBytesFromFile(uint8_t buf[DATA_MAX], FILE *f){
     int c = 0;
     int i;
-    for (i = 0; i <= DATA_MAX && c != EOF; ++i){
+    for (i = 0; i < DATA_MAX && c != EOF; ++i){
         c = fgetc(f);
         buf[i] = c;
         if (c == EOF){
