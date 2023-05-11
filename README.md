@@ -7,8 +7,9 @@ I didn't want to buy an EEPROM programmer so I just use an arduino to program it
 The ROM data would be burned into the arduino's flash in byte form and written to the EEPROM.
 
 When I first started working on the project my workflow was like this:
+
 Write z80 assembly -> assemble it with z80asm -> convert the bin into intel hex -> convert intel hex into 0x00 format for the arduino byte array ->
-remove EEPROM from breadboard -> connect EEPROM to arduino's breadboard -> have the arduino flash the EEPROM -> 
+flash the arduino with the new ROM data ->remove EEPROM from breadboard -> connect EEPROM to arduino's breadboard -> have the arduino flash the EEPROM -> 
 remove EEPROM and replace back into z80's breadboard -> reset z80 and test
 
 
