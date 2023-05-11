@@ -18,8 +18,7 @@
 #else
     #include <fcntl.h>
     #include <errno.h>
-    #include <termios.h> // doesn't allow for custom baud rates
-    //#include <sys/ioctl.h> // Used for TCGETS2/TCSETS2, which is required for custom baud rates
+    #include <termios.h>
     #include <unistd.h>
     #include <dirent.h>
     #include <string.h>
