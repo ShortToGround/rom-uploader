@@ -1,5 +1,5 @@
 ## Purpose
-To stream raw ROM data to an arduino in order to be flashed to an SRAM or EEPROM chip for prototyping.
+To stream raw ROM data to an arduino that is then flashed to an SRAM or EEPROM chip for prototyping.
 
 ## Why this was needed
 I have been working on a z80 SBC on and off (mostly off lol) for a few years.
