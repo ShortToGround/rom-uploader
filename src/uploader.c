@@ -227,7 +227,6 @@ void listCOMPorts(void){
     #endif
 }
 
-
 // converts uint16_t object into 2 uint8_t objects
 void u16tou8(uint8_t buf[], uint16_t n){
     // to get most significant byte
@@ -496,6 +495,7 @@ void printHelp(){
     printf("\t-p, --port\tselect the programmer's serial port\n");
     printf("\t-r, --read-contents\tprint the contents of the ROM. If number of bytes isn't supplied (or if 0 is entered) then it will dump the max rom size worth of bytes.\n");
     printf("\t-w, --write\tWrites bin/hex file to the programmer. Requires a COM port, an input file.\n");
+    // TODO: Add option to adjust timeout
     printf("\n");
 }
 
@@ -649,6 +649,8 @@ int main(int argc, char *argv[]){
                 u16tou8(s, file_size);
                 // call sendData and tell it to only send the first 2 bytes (that contain our file_size) and only send this data without adding the header and footer
                 sendData(COM, s, 2, DATA_PACKET_FLAG_OFF);
+
+                // The programmer will ACK back with either the rom_size it received or a 0 if the rom_size is too big
                 recvData(s, COM, 2);
                 uint16_t tmp = 0;
                 tmp = s[0] << 8;
@@ -662,8 +664,8 @@ int main(int argc, char *argv[]){
                     progress_bar[i] = ' ';
                 }
                 
+                // let's make sure the rom_size the arduino thinks is coming is correct
                 if (file_size == tmp){
-                    //printf("ROM size acknowledged\n");
 
                     // print the empty 00.0% bar to the screen
                     clearScreen();
