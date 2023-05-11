@@ -31,6 +31,8 @@ the SRAM chip. This would allow VERY rapid changes being implemented quickly and
 
 
 ## Arduino
-This program is meant to be paired with my Arduino sketch that is included in the repo under the avr folder
+This program is meant to be paired with my Arduino sketch that is included in the repo under the avr folder.
+
+
 I am currently in the process of porting this to plain C because I'm not a fan of the arduino IDE or the overhead of its various built-in functions
 but it was the faster choice because I wanted this working ASAP.
