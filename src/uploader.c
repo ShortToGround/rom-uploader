@@ -8,9 +8,7 @@
     #include <winsock2.h>
     #include <windows.h>
     #pragma comment(lib, "ws2_32.lib")
-    // PATH_MAX is a *nix definition for max file name length and MAX_PATH is the definition in the windows API
-    // I've just decided to use PATH_MAX in my code and just define it equal to MAX_PATH when compiling for windows
-    #define PATH_MAX MAX_PATH
+    #define MAX_FILE_NAME_LEN MAX_PATH
     #define NO_COM NULL // When a COM fails to init then it returns NULL on the windows code
     char defaultPort[] = "COM4";
 
@@ -26,6 +24,7 @@
     #include <dirent.h>
     #include <string.h>
     #include <time.h> // for nanosleep()
+    #define MAX_FILE_NAME_LEN PATH_MAX
     #define NO_COM 0 // When a COM fails to init then it returns 0 on the Linux code
     char defaultPort[] = "ttyUSB0";
 
