@@ -8,6 +8,13 @@
         #define NO_COM NULL // When a COM fails to init then it returns NULL on the windows code
         typedef HANDLE serial_com;
     #else
+        #include <fcntl.h>
+        #include <errno.h>
+        #include <termios.h>
+        #include <unistd.h>
+        #include <dirent.h>
+        //#include <string.h>
+        //#include <time.h> // for nanosleep()
         typedef int serial_com;
         #define NO_COM 0 // When a COM fails to init then it returns 0 on the Linux code
     #endif
