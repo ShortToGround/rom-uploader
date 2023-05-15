@@ -9,7 +9,7 @@
         typedef HANDLE serial_com;
     #else
         #include <fcntl.h>
-        #include <errno.h>
+        //#include <errno.h>
         #include <termios.h>
         #include <unistd.h>
         #include <dirent.h>

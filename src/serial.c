@@ -6,6 +6,7 @@ void closeCOM(serial_com COM){
         CloseHandle(COM);
     #endif
     #ifdef __linux__
+        #include <errno.h> // for strerror();
         #include <unistd.h> // for close()
         close(COM);
     #endif
