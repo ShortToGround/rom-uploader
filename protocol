@@ -1,12 +1,13 @@
 Overview of my very simple flow control protocol 
 
-> select write
+
+> write command is sent
     > send/recv ACK
 	  > will retry 3 times
     > send ROM data size
     > send/recv ACK
-	  > if ROM is too big then arduino will send a fail ACK (literal 0)
-    > begin sending ROM chunks
+	  > if ROM is too big then Arduino/AVR device will send a fail ACK (literal 0)
+    > begin sending ROM chunks*
         > send 1 byte of length data
         > send data chunk (up to arduino buffer size - 3 bytes)
         > send 2 bytes of crc data
@@ -15,10 +16,11 @@ Overview of my very simple flow control protocol
 	    > repeat until done
 
 
-> select read
+> read command is sent
     > send/recv ACK
         > will retry 3 times
     > send amount of bytes to read
+        > ###current no ACK here, will implement soon###
     > print bytes as they come in
 
 
@@ -26,3 +28,14 @@ Overview of my very simple flow control protocol
 Notes: 
 > ACK timeout after 3 tries -> abort
 
+
+
+* A "data chunk" in this context is made up 3 parts
+    Header - This is a single byte that tells the Arduino/AVR device how many data bytes to expect
+    Data   - This is the actual data that needs to be sent
+    Footer - This is a 16-bit CRC hash that is broken up into 2 bytes and padded to the end of the chunk
+
+    The total data chunk size is dictated by the serial buffer size of the Arduino/AVR device.
+    If the serial buffer is 64 bytes, then the Data portion of the chunk will only be 61 bytes long.
+
+    The serial buffer can never be over 255 bytes due to the Header only being 1 byte.
