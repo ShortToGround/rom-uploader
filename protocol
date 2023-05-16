@@ -13,7 +13,8 @@ Overview of my very simple flow control protocol
         > send 2 bytes of crc data
         > arduino will send back an ACK on the crc hash
             > if crc mismatch then try again (up to 3 times)
-	    > repeat until done
+	    > repeat until no bytes are left to send
+        > send "empty" data chunk to tell Arduino we are done
 
 
 > read command is sent
