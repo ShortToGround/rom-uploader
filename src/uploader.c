@@ -21,7 +21,7 @@ uint8_t writeFlag = 0;
 uint8_t compareFlag = 0;
 
 
-// Cross-platform Sleep function - Thanks Bernardo Ramos on sack overflow!
+// Cross-platform Sleep function - Thanks Bernardo Ramos on stack overflow!
 void sleep_ms(int milliseconds){
     #ifdef WIN32
         Sleep(milliseconds);
@@ -31,9 +31,10 @@ void sleep_ms(int milliseconds){
         ts.tv_nsec = (milliseconds % 1000) * 1000000;
         nanosleep(&ts, NULL);
     #else
-        if (milliseconds >= 1000)
-        sleep(milliseconds / 1000);
-        usleep((milliseconds % 1000) * 1000);
+        if (milliseconds >= 1000){
+            sleep(milliseconds / 1000);
+            usleep((milliseconds % 1000) * 1000);
+        }
     #endif
 }
 

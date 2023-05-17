@@ -7,9 +7,7 @@
         #include <windows.h>
         #define NO_COM NULL // When a COM fails to init then it returns NULL on the windows code
         typedef HANDLE serial_com;
-        char defaultPort[] = "COM4";
     #else
-        char defaultPort[] = "ttyUSB0";
         typedef int serial_com;
         #define NO_COM 0 // When a COM fails to init then it returns 0 on the Linux code
     #endif

@@ -71,11 +71,8 @@ serial_com openCOM(char comPort[], int baudrate, int list_flag){
         char comstr[] = "/dev/";
         char port[14];
 
-        // Awful way to get my compiler to stop complaining about the unused list_flag arg
-        if (list_flag){
-            ;
-        }
-        // seriously I'm so sorry lol, I'll fix this later... said every dev ever
+        
+       (void)list_flag // temp measure to get my compiler to stop complaining about the unused list_flag arg
 
         sprintf(port, "%s%s", comstr, comPort);
         int serial_port = open(port, O_RDWR);
