@@ -8,6 +8,7 @@
 #define PROGRESS_BAR_LEN 50 // Length of the progress bar during upload
 
 // Global variables //
+serial_com COM;
 char *file_path = NULL;
 char *port = NULL;
 uint8_t printROM = 0;
@@ -71,7 +72,7 @@ uint16_t crc16_update(uint16_t crc, uint8_t n){
     The data packet flag will control wether or not we are sending the length byte header and crc footer.
     If the function is called with DATA_PACKET_FLAG_OFF then only the bytes in the output buffer will be sent, otherwise it will add the footer and header before sending
 */
-int sendData(serial_com COM, uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
+int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
     //TODO: maybe pull the crc code blocks out into a function since they are copy and pasted for windows and linux ifdefs
     int output, i, j;
     uint8_t sbuf[BUFFER_SIZE];
@@ -128,7 +129,6 @@ int sendData(serial_com COM, uint8_t s[], uint8_t num_bytes, uint8_t data_packet
                         num_bytes,      // No of bytes to write into the port
                         &bytesSent,     // No of bytes written to the port
                         NULL);
-
         if (output == 0){
             return 0;
         }
@@ -189,9 +189,9 @@ int sendData(serial_com COM, uint8_t s[], uint8_t num_bytes, uint8_t data_packet
     Grabs data from COM buffer and places it into a static buffer
     if numOfRecvBytes is set to 0 then it will read the same amount as BUFFER_SIZE
 */
-unsigned long recvData(uint8_t s[BUFFER_SIZE], serial_com COM, unsigned int numOfRecvBytes){
+unsigned long recvData(uint8_t s[BUFFER_SIZE], unsigned int numOfRecvBytes){
     unsigned long recv, i;
-    uint8_t sbuf[BUFFER_SIZE];
+    uint8_t sbuf[BUFFER_SIZE] = {0};
 
     // if (numOfRecvBytes == 0){
     //     numOfRecvBytes = (sizeof(sbuf) / sizeof(uint8_t)) - 1;
@@ -221,7 +221,6 @@ unsigned long recvData(uint8_t s[BUFFER_SIZE], serial_com COM, unsigned int numO
         for (i = 0; i < inBytes; ++i){
             s[i] = sbuf[i];
         }
-        
         return inBytes;
     #endif
 
@@ -387,14 +386,14 @@ int parseArgs(int argc, char *argv[]){
 
 // Handles receiving the ROM dump from the device and formats the output to make it easier to read
 // TODO: Maybe add a compare flag and save the ROM into a buffer for comparison later for my comparsion main() arg? 
-void getROMFromMachine(uint8_t s[], serial_com COM){
+void getROMFromMachine(uint8_t s[]){
     unsigned long i, j = 0, k;
     unsigned long byteCounter = 0;
     uint8_t rombuf[MAX_ROM_SIZE] = {0};
     uint8_t timeout = 0;
 
     while (timeout < 3){
-        while ((i = recvData(s, COM, 0)) && (j < MAX_ROM_SIZE)){
+        while ((i = recvData(s, 0)) && (j < MAX_ROM_SIZE)){
             for (k = 0; k < i; ++k, ++j){
                 rombuf[j] = s[k];
             }
@@ -417,6 +416,13 @@ void getROMFromMachine(uint8_t s[], serial_com COM){
     }
 }
 
+void clearInputBuf(serial_com COM){
+    #ifdef _WIN32
+        PurgeComm(COM, PURGE_RXCLEAR);
+    #else
+    #endif
+}
+
 int main(int argc, char *argv[]){
     uint8_t s[BUFFER_SIZE] = {0};
     uint8_t chunk[sizeof(s)];
@@ -431,17 +437,24 @@ int main(int argc, char *argv[]){
         printf("no port selected, defaulting to %s\n", defaultPort);
         port = defaultPort; // defined in #ifdefs
     }
-
+    
     // if file_path and port aren't empty then let's try to upload some data!
     if (fileFlag && writeFlag){
-        serial_com COM = openCOM(port, BAUD_RATE, 0);
+        COM = openCOM(port, BAUD_RATE, 0);
+        
         if (COM != NO_COM){
+
             // My target device is an arduino board and this gives it time to reboot
             sleep_ms(2000);
+            // Arduinos also send some garbage data when they first boot so let's clear the COM input buffer
+            clearInputBuf(COM);
 
             FILE *fp;
             fp = fopen(file_path, "rb");
-
+            if (fp == NULL){
+                printf("Could not open file. Aborting...\n");
+                exit(1);
+            }
             // Let's see how many bytes are in this bin/hex file
             fseek(fp, 0L, SEEK_END);
             file_size = ftell(fp);
@@ -449,19 +462,16 @@ int main(int argc, char *argv[]){
             fseek(fp, 0L, SEEK_SET);
             s[0] = file_size >> 8;
             s[1] = file_size & 0xFF;
-
             s[0] = '#';
-            sendData(COM, s, 1, DATA_PACKET_FLAG_OFF);
-            recvData(s, COM, 1);
-
+            sendData(s, 1, DATA_PACKET_FLAG_OFF);
+            recvData(s, 1);
             if (s[0] == '#'){
                 // Break the 16-bit file_size into 2 bytes and stick then in the s[] buffer
                 u16tou8(s, file_size);
                 // call sendData and tell it to only send the first 2 bytes (that contain our file_size) and only send this data without adding the header and footer
-                sendData(COM, s, 2, DATA_PACKET_FLAG_OFF);
-
+                sendData(s, 2, DATA_PACKET_FLAG_OFF);
                 // The programmer will ACK back with either the rom_size it received or a 0 if the rom_size is too big
-                recvData(s, COM, 2);
+                recvData(s, 2);
                 uint16_t tmp = 0;
                 tmp = s[0] << 8;
                 tmp = tmp | s[1];
@@ -488,8 +498,8 @@ int main(int argc, char *argv[]){
                     while ((i = getBytesFromFile(chunk, fp))){
                         // seriously crude timeout control
                         while (timeoutct < 3){
-                            sendData(COM, chunk, i, DATA_PACKET_FLAG_ON);
-                            recvData(s, COM, 1);
+                            sendData(chunk, i, DATA_PACKET_FLAG_ON);
+                            recvData(s, 1);
                             // ACK of 1 means successful reception and to send the next chunk
                             if (s[0] == 1){
                                 data_processed += i;
@@ -512,11 +522,11 @@ int main(int argc, char *argv[]){
                     // Now that the ROM has been sent, let's send a 0 length 0 byte "chunk" to let the programmer know we are done
                     s[0] = 0;
                     // Sends a chunk with a length byte of 0, so the programmer will assume there is no more data to send.
-                    sendData(COM, s, 1, DATA_PACKET_FLAG_OFF);
+                    sendData(s, 1, DATA_PACKET_FLAG_OFF);
                     putchar('\n');
                     
                     // Now we will get the output back from the chip
-                    getROMFromMachine(s, COM);
+                    getROMFromMachine(s);
 
                     // make the cursor visible again
                     printf("\33[?25h");
@@ -530,21 +540,25 @@ int main(int argc, char *argv[]){
             closeCOM(COM);
             return 0;
         }
+        else{
+            printf("Failed to open COM. Aborting...\n");
+            exit(1);
+        }
     }
     else if (printROM == 1){
         printf("PrintROM:%d\nport:%s\n", printROM, port);
-        serial_com COM = openCOM(port, BAUD_RATE, 0);
+        COM = openCOM(port, BAUD_RATE, 0);
         if (COM != NO_COM){
             sleep_ms(2000);
             s[0] = '?';
             printf("sending print rom command\n");
-            sendData(COM, s, 1, DATA_PACKET_FLAG_OFF);
+            sendData(s, 1, DATA_PACKET_FLAG_OFF);
             printf("waiting for response\n");
-            recvData(s, COM, 1);
+            recvData(s, 1);
             if (s[0] == '?'){
                 u16tou8(s, printROMSize);
-                sendData(COM, s, 2, DATA_PACKET_FLAG_OFF);
-                getROMFromMachine(s, COM);
+                sendData(s, 2, DATA_PACKET_FLAG_OFF);
+                getROMFromMachine(s);
             }
 
             printf("\ndone\n");
