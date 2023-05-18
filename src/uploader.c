@@ -503,9 +503,23 @@ int main(int argc, char *argv[]){
                             recvData(s, 1);
                             // ACK of 1 means successful reception and to send the next chunk
                             if (s[0] == 1){
+                                // Now we listen for the heartbeats to stop and recv another ack of 1 to say it is ready for more data
                                 data_processed += i;
                                 printProgress(file_size, data_processed, sizeof(progress_bar));
                                 timeoutct = 0;
+
+                                // Serial heartbeat while the programmer writes to the memory IC
+                                // possible place where the program could hang, need to implement a timeout here too
+                                s[0] = '.'; // Lazy way to start the while loop
+                                while (s[0] == '.'){
+                                    recvData(s, 1);
+                                }
+                                if (s[0] == 1){
+                                    break;
+                                }
+                                else{
+                                    // If we get here then the programmer didn't ACK after the write so this means something really strange happened
+                                }
                                 break;
                             }
                             else{
