@@ -421,6 +421,7 @@ void clearInputBuf(serial_com COM){
     #ifdef _WIN32
         PurgeComm(COM, PURGE_RXCLEAR);
     #else
+        tcflush(fd,TCIOFLUSH);
     #endif
 }
 
