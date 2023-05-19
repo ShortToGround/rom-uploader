@@ -387,10 +387,10 @@ int parseArgs(int argc, char *argv[]){
 
 // Handles receiving the ROM dump from the device and formats the output to make it easier to read
 // TODO: Maybe add a compare flag and save the ROM into a buffer for comparison later for my comparsion main() arg? 
-void getROMFromMachine(uint8_t s[]){
+unsigned long getROMFromMachine(uint8_t s[], uint8_t rombuf[]){
     unsigned long i, j = 0, k;
-    unsigned long byteCounter = 0;
-    uint8_t rombuf[MAX_ROM_SIZE] = {0};
+    //unsigned long byteCounter = 0;
+    //uint8_t rombuf[MAX_ROM_SIZE] = {0};
     uint8_t timeout = 0;
 
     while (timeout < 3){
@@ -402,19 +402,37 @@ void getROMFromMachine(uint8_t s[]){
         sleep_ms(10);
         ++timeout;
     }
-    printf("ROM Size:%lu\n", j);
+    // printf("ROM Size:%lu\n", j);
+    // printf("ROM Data:\n");
+    // for (i = 0; i < j; ++i){
+    //     printf("%02x ", rombuf[i]);
+    //     ++byteCounter;
+    //     if ((byteCounter > 0) && ((byteCounter % 16) == 0)){
+    //         putchar('\n');
+    //     }
+    //     else if ((byteCounter > 0) && ((byteCounter % 8) == 0)){
+    //         putchar(' ');
+    //         putchar(' ');
+    //     }
+    // }
+    return j;
+}
+
+void printRomData(uint8_t rombuf[], unsigned long byteCount){
+    uint16_t i;
+
+    printf("ROM Size:%lu\n", byteCount);
     printf("ROM Data:\n");
-    for (i = 0; i < j; ++i){
+    for (i = 0; i < byteCount; ++i){
         printf("%02x ", rombuf[i]);
-        ++byteCounter;
-        if ((byteCounter > 0) && ((byteCounter % 16) == 0)){
+        if ((i > 0) && ((i % 16) == 0)){
             putchar('\n');
         }
-        else if ((byteCounter > 0) && ((byteCounter % 8) == 0)){
+        else if ((i > 0) && ((i % 8) == 0)){
             putchar(' ');
             putchar(' ');
         }
-    }
+    } 
 }
 
 void clearInputBuf(serial_com COM){
@@ -542,7 +560,10 @@ int main(int argc, char *argv[]){
                     putchar('\n');
                     
                     // Now we will get the output back from the chip
-                    getROMFromMachine(s);
+                    uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
+                    unsigned long numOfBytes = getROMFromMachine(s, rombuf);
+                    printRomData(rombuf, numOfBytes);
+                    free(rombuf);
 
                     // make the cursor visible again
                     printf("\33[?25h");
@@ -574,7 +595,10 @@ int main(int argc, char *argv[]){
             if (s[0] == '?'){
                 u16tou8(s, printROMSize);
                 sendData(s, 2, DATA_PACKET_FLAG_OFF);
-                getROMFromMachine(s);
+                uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
+                unsigned long numOfBytes = getROMFromMachine(s, rombuf);
+                printRomData(rombuf, numOfBytes);
+                free(rombuf);
             }
 
             printf("\ndone\n");
@@ -583,6 +607,8 @@ int main(int argc, char *argv[]){
     }
     else if (compareFlag && fileFlag){
         // TODO: ADD THIS IN
+        uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
+        free(rombuf);
     }
     else{
         printf("Not enough arguments\n");
