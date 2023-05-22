@@ -137,46 +137,6 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
     #endif
 
     #ifdef __linux__
-    // if a data packet flag is set then we need to pad the data with the length byte and the crc bytes
-        if (data_packet_flag){
-            // this is where the data is buffered before sending
-            // the length byte is stored first, then the data, then the crc bytes at the end
-            outputBuf = sbuf;
-            // First byte in the data chunk will be our data byte count
-            sbuf[0] = num_bytes;
-
-            // Populate the actual chunk of data
-            for (i = 1, j = 0; j < num_bytes; ++i, ++j){
-                sbuf[i] = s[j];
-            }
-
-            // next we calculate the crc hash
-            uint16_t crc = 0;
-            uint8_t crc_most_sig, crc_least_sig;
-
-            for (i = 0; i < num_bytes; ++i){
-                crc = crc16_update(crc, s[i]);
-            }
-            // to get most significant byte
-            // bit shift n to the right 8 times
-            crc_most_sig = crc >> 8;
-
-            // To get the least sig byte we & crc and 0xFF to clear the most significant byte
-            crc_least_sig = crc & 0xFF;
-
-            // Add the crc bytes to the end of the data chunk
-            sbuf[++i] = crc_most_sig;
-            sbuf[++i] = crc_least_sig;
-
-            // Because we've added a len byte and 2 crc bytes we need to make sure to change num_bytes to match
-            // num_bytes is used to tell the WriteFile how many bytes to send
-            num_bytes += 3;
-        }
-        else{
-            // set the outputBuf pointer to s
-            outputBuf = s;
-        }
-
         output = write(COM, outputBuf, num_bytes);
 
         if (output == -1){
