@@ -23,7 +23,7 @@ uint8_t compareFlag = 0;
 
 // Cross-platform Sleep function - Thanks Bernardo Ramos on stack overflow!
 void sleep_ms(int milliseconds){
-    #ifdef WIN32
+    #ifdef _WIN32
         Sleep(milliseconds);
     #elif _POSIX_C_SOURCE >= 199309L
         struct timespec ts;
@@ -122,6 +122,7 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
         // set the outputBuf pointer to s
         outputBuf = s;
     }
+
     #ifdef _WIN32
         // Windows WriteFile() doesn't return the bytes sent directly, it will set this variable to the total instead, though it is unused for now
         unsigned long bytesSent = 0;
