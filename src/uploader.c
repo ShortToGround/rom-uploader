@@ -199,6 +199,8 @@ unsigned long recvData(uint8_t s[BUFFER_SIZE], unsigned int numOfRecvBytes){
         }
         return recv;
     #endif
+
+    return 0;
 }
 
 
