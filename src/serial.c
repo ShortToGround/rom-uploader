@@ -129,7 +129,8 @@ serial_com openCOM(char comPort[], int baudrate, int list_flag){
         }
         return serial_port;
     #endif
-
+    
+    return 0;
 }
 
 void listCOMPorts(void){
