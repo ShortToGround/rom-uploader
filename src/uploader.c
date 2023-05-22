@@ -145,6 +145,8 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
         }
         return 1;
     #endif
+
+    return 0;
 }
 
 /*  
