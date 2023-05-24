@@ -4,7 +4,8 @@
 #define EEPROM_D0 5
 #define EEPROM_D7 12
 #define WRITE_EN 13
-
+#define CPU_BUS_REQ A4
+#define CPU_RESET A5
 
 #define MAX_ROM_SIZE 32767 // current max due to shift register hardware limit
 // TODO: Have the AVR chip send the buffer size it uses and make this dynamic on the PC end
