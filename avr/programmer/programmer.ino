@@ -1,5 +1,5 @@
 
-#define BAUD 250000
+#define BAUD 76800
 #include <util/setbaud.h> // for Serial operations
 #include "include/programmer.h"
 
@@ -288,7 +288,7 @@ void loop(void) {
             rom_size = u8tou16(rom_size_msb, rom_size_lsb);
 
             if ((rom_size > 0) && (rom_size <= MAX_ROM_SIZE)){
-                send_uint16(rom_size); // ACK 1 for success
+                send_uint16(rom_size); // ACK size of ROM for success
             }
             else{
                 // if the ROM is too big we will tell the programmer and then break
