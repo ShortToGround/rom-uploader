@@ -1,7 +1,7 @@
 #ifndef SERIAL_H
     #define SERIAL_H
 
-    #define BAUD_RATE 76800 // Win api wants unsigned long and linux terminos wants usigned int... but neither complain if I don't specify
+    #define BAUD_RATE 1000000 // Win api wants unsigned long and linux terminos wants usigned int... but neither complain if I don't specify
 
     #ifdef _WIN32
         #include <windows.h>
