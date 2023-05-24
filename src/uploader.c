@@ -157,11 +157,6 @@ unsigned long recvData(uint8_t s[BUFFER_SIZE], unsigned int numOfRecvBytes){
     unsigned long recv, i;
     uint8_t sbuf[BUFFER_SIZE] = {0};
 
-    // if (numOfRecvBytes == 0){
-    //     numOfRecvBytes = (sizeof(sbuf) / sizeof(uint8_t)) - 1;
-    // }
-
-    // I think this will do the same as above without using cycles on math?
     if (numOfRecvBytes == 0){
         numOfRecvBytes = BUFFER_SIZE - 1;
     }
