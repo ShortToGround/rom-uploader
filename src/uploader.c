@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <math.h> // for round() used by the progress bar function
 #include "../include/serial.h"
 #include "../include/uploader.h"
 
@@ -240,7 +239,7 @@ void printProgress(long file_size, long processed_data){
         double out = ((double) processed_data) / ((double) file_size / (double) PROGRESS_BAR_LEN);
         putchar(13);
         // prints the '#' at the appropriate spot
-        for (int i = 0; i < round(out); ++i){
+        for (int i = 0; i < (int)(out + 0.5); ++i){
             printf("\x1b[%dC#", 9 + i);
             putchar(13);
         }
