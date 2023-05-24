@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h> // for round() used by the progress bar function
 #include "../include/serial.h"
 #include "../include/uploader.h"
 
@@ -231,23 +232,24 @@ void clearScreen(void){
 }
 
 // This prints the progress bar to the terminal based on how many bytes have been sent vs the total number of bytes
-void printProgress(long file_size, long processed_data, unsigned int divisor){
+void printProgress(long file_size, long processed_data){
     // makes the cursor invisible
     printf("\33[?25l");
 
     if (processed_data != 0){
-        double out = ((double) processed_data) / ((double) file_size / (double) divisor);
+        double out = ((double) processed_data) / ((double) file_size / (double) PROGRESS_BAR_LEN);
         putchar(13);
         // prints the '#' at the appropriate spot
-        for (int i = 0; i < (int) out; ++i){
-            //printf("writing to char %d\n", 9 + i);
+        for (int i = 0; i < round(out); ++i){
             printf("\x1b[%dC#", 9 + i);
             putchar(13);
         }
         
        
         // updates the completion %
-        printf("\x1b[%dC%.1f%%", divisor + 11, (((double) processed_data) / ((double) file_size)) * 100);
+        printf("\x1b[%dC]", PROGRESS_BAR_LEN + 8); // Puts the 
+        putchar(13);
+        printf("\x1b[%dC%.1f%%", PROGRESS_BAR_LEN + 11, (((double) processed_data) / ((double) file_size)) * 100);
     }
 }
 
@@ -362,19 +364,6 @@ unsigned long getROMFromMachine(uint8_t s[], uint8_t rombuf[]){
         sleep_ms(10);
         ++timeout;
     }
-    // printf("ROM Size:%lu\n", j);
-    // printf("ROM Data:\n");
-    // for (i = 0; i < j; ++i){
-    //     printf("%02x ", rombuf[i]);
-    //     ++byteCounter;
-    //     if ((byteCounter > 0) && ((byteCounter % 16) == 0)){
-    //         putchar('\n');
-    //     }
-    //     else if ((byteCounter > 0) && ((byteCounter % 8) == 0)){
-    //         putchar(' ');
-    //         putchar(' ');
-    //     }
-    // }
     return j;
 }
 
@@ -457,12 +446,8 @@ int main(int argc, char *argv[]){
                 tmp = tmp | s[1];
                 
                 //let's setup the progress bar
-                char progress_bar[PROGRESS_BAR_LEN]; // the printProgress function will change its bar length depending on the size of this array
-                
-                // Set all of the elements to a space char
-                for (i = 0; i < sizeof(progress_bar); ++i){
-                    progress_bar[i] = ' ';
-                }
+                char progress_bar[PROGRESS_BAR_LEN] = {' '}; // the printProgress function will change its bar length depending on the size of this array
+
                 
                 // let's make sure the rom_size the arduino thinks is coming is correct
                 if (file_size == tmp){
@@ -484,7 +469,7 @@ int main(int argc, char *argv[]){
                             if (s[0] == 1){
                                 // Now we listen for the heartbeats to stop and recv another ack of 1 to say it is ready for more data
                                 data_processed += i;
-                                printProgress(file_size, data_processed, sizeof(progress_bar));
+                                printProgress(file_size, data_processed);
                                 timeoutct = 0;
 
                                 // Serial heartbeat while the programmer writes to the memory IC
@@ -502,7 +487,7 @@ int main(int argc, char *argv[]){
                                 break;
                             }
                             else{
-                                printProgress(file_size, data_processed, sizeof(progress_bar));
+                                printProgress(file_size, data_processed);
                                 ++timeoutct;
                             }
                             if (timeoutct > 2){
@@ -527,6 +512,7 @@ int main(int argc, char *argv[]){
 
                     // make the cursor visible again
                     printf("\33[?25h");
+                    putchar('\n'); // so when the program exits the shell prompt starts on the next line
                 }
                 else{
                     printf("data is too big to write to ROM!\n");
