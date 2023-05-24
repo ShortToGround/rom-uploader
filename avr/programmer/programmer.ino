@@ -1,5 +1,5 @@
 
-#define BAUD 76800
+#define BAUD 1000000
 #include <util/setbaud.h> // for Serial operations
 #include "include/programmer.h"
 
