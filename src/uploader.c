@@ -371,7 +371,7 @@ void printRomData(uint8_t rombuf[], unsigned long byteCount){
 
     printf("ROM Size:%lu\n", byteCount);
     printf("ROM Data:\n");
-    for (i = 0; i < byteCount; ++i){
+    for (i = 1; i <= byteCount; ++i){
         printf("%02x ", rombuf[i]);
         if ((i > 0) && ((i % 16) == 0)){
             putchar('\n');
