@@ -322,6 +322,7 @@ int parseArgs(int argc, char *argv[]){
             }
             // TODO: see why this doesn't work when -r is just used without specifying a number
             // Probably has something to do with the fact that I have no bounds checking on argv atm
+            // Also TODO: when writing a ROM to the programmer allow this switch to control whether it prints the ROM contents at the end or not
             if (isStrNum(argv[i + 1])){
                 printROMSize = atoi(argv[i + 1]);
                 ++i;
@@ -371,12 +372,12 @@ void printRomData(uint8_t rombuf[], unsigned long byteCount){
 
     printf("ROM Size:%lu\n", byteCount);
     printf("ROM Data:\n");
-    for (i = 1; i <= byteCount; ++i){
+    for (i = 0; i <= byteCount; ++i){
         printf("%02x ", rombuf[i]);
-        if ((i > 0) && ((i % 16) == 0)){
+        if (((i + 1) > 0) && (((i + 1) % 16) == 0)){
             putchar('\n');
         }
-        else if ((i > 0) && ((i % 8) == 0)){
+        else if (((i + 1) > 0) && (((i + 1) % 8) == 0)){
             putchar(' ');
             putchar(' ');
         }
