@@ -372,7 +372,7 @@ void printRomData(uint8_t rombuf[], unsigned long byteCount){
 
     printf("ROM Size:%lu\n", byteCount);
     printf("ROM Data:\n");
-    for (i = 0; i <= byteCount; ++i){
+    for (i = 0; i <= byteCount - 1; ++i){
         printf("%02x ", rombuf[i]);
         if (((i + 1) > 0) && (((i + 1) % 16) == 0)){
             putchar('\n');
@@ -429,8 +429,8 @@ int main(int argc, char *argv[]){
             file_size = ftell(fp);
             // Now let's set the file pointer back to 0
             fseek(fp, 0L, SEEK_SET);
-            s[0] = file_size >> 8;
-            s[1] = file_size & 0xFF;
+            //s[0] = file_size >> 8;
+            //s[1] = file_size & 0xFF;
             s[0] = '#';
             sendData(s, 1, DATA_PACKET_FLAG_OFF);
             recvData(s, 1);
