@@ -15,6 +15,24 @@ I'm slowly re-writing this in pure C as time goes on and will eventually only ha
 
 */
 
+// This is used for prototyping my Z80 and has nothing to do with the actual functionality of this program
+// This will enable A10 as PWM output and adjust the freq down close to 60Hz @ 50% duty cycle
+void startPWM(void){
+    digitalWrite(Z80_INTERRUPT, LOW);
+    pinMode(Z80_INTERRUPT, OUTPUT);
+
+    // This is roughly 62.5Hz without counting in the function calls overhead
+    while(1){
+        digitalWrite(Z80_INTERRUPT, HIGH);
+        delay(8);
+        digitalWrite(Z80_INTERRUPT, LOW);
+        delay(8);
+    }
+
+
+
+}
+
 int userInput;
 int skipErase;
 uint16_t address = 0;
@@ -239,6 +257,7 @@ void setup(void) {
     pinMode(SHIFT_DATA, OUTPUT);
     pinMode(SHIFT_CLK, OUTPUT);
     pinMode(SHIFT_LATCH, OUTPUT);
+    pinMode(Z80_INTERRUPT, INPUT);
 
     // TODO: See if I need this here with my current setup
     digitalWrite(WRITE_EN, HIGH);
@@ -308,6 +327,7 @@ void loop(void) {
                     printContents(rom_size);
 
                     runMode();
+                    startPWM();
                     break;
                 }
                 // Now we grab the next n bytes, where n is equal to the length we just received

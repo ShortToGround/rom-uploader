@@ -11,15 +11,18 @@
 serial_com COM;
 char *file_path = NULL;
 char *port = NULL;
+char *target = NULL;
 uint8_t printROM = 0;
 uint16_t printROMSize = 0;
-
+//TODO: Modify OpenCOM() so it doesn't need baudrate arg anymore.
+int baudrate = BAUD_RATE;
 // main() arg flags
 uint8_t fileFlag = 0;
 uint8_t portFlag = 0;
 uint8_t writeFlag = 0;
 uint8_t compareFlag = 0;
-
+uint8_t z80Flag = 0;
+uint8_t arduinoFlag = 0;
 
 // Cross-platform Sleep function - Thanks Bernardo Ramos on stack overflow!
 void sleep_ms(int milliseconds){
@@ -50,7 +53,7 @@ void u16tou8(uint8_t buf[], uint16_t n){
     buf[1] = n & 0xFF;
 }
 
-// generates a 16-bit crc checksum, iterated by an uint8_t input per loop
+// generates a 16-bit crc checksum, iterated by an uint8_t input per call
 uint16_t crc16_update(uint16_t crc, uint8_t n){
     uint8_t i;
     crc ^= n;
@@ -265,6 +268,7 @@ void printHelp(){
     printf("\t-l, --list\tlist all available serial ports on the system and then exits\n");
     printf("\t-p, --port\tselect the programmer's serial port\n");
     printf("\t-r, --read-contents\tprint the contents of the ROM. If number of bytes isn't supplied (or if 0 is entered) then it will dump the max rom size worth of bytes.\n");
+    printf("\t-t, --target\tselect the target (arduino or z80)\n");
     printf("\t-w, --write\tWrites bin/hex file to the programmer. Requires a COM port, an input file.\n");
     // TODO: Add option to adjust timeout
     printf("\n");
@@ -333,6 +337,20 @@ int parseArgs(int argc, char *argv[]){
             }
             printf("Dumping ROM...\n");
             printROM = 1;
+        }
+        else if ((strcmp("-t", arg) == 0) || ((strcmp("--target", arg) == 0))){
+            target = argv[i + 1];
+            if ((strcmp("z80", target) == 0)){
+                if (arduinoFlag){
+                    printf("ERROR: Selected more than 1 target machine type.\n");
+                    exit(1);
+                }
+                else{
+                    ++z80Flag;
+                    baudrate = 115200;
+                    printf("z80 targeted, seeing baudrate to 115200\n");
+                }
+            }
         }
         else if ((strcmp("-w", arg) == 0) || ((strcmp("--write", arg) == 0))){
             if (printROM){
@@ -406,17 +424,26 @@ int main(int argc, char *argv[]){
         printf("no port selected, defaulting to %s\n", defaultPort);
         port = defaultPort; // defined in #ifdefs
     }
-    
     // if file_path and port aren't empty then let's try to upload some data!
     if (fileFlag && writeFlag){
-        COM = openCOM(port, BAUD_RATE, 0);
+        COM = openCOM(port, baudrate, 0);
         
         if (COM != NO_COM){
 
-            // My target device is an arduino board and this gives it time to reboot
-            sleep_ms(2000);
-            // Arduinos also send some garbage data when they first boot so let's clear the COM input buffer
-            clearInputBuf(COM);
+            if (z80Flag){
+                s[0] = '2';
+                s[1] = 13; // Carriage return
+                sendData(s, 2, DATA_PACKET_FLAG_OFF);
+                clearInputBuf(COM);
+            }
+            // Then we are targeting an arduino
+            else{ 
+                // device is an arduino board and this gives it time to reboot
+                sleep_ms(2000);
+                // Arduinos also send some garbage data when they first boot so let's clear the COM input buffer
+                clearInputBuf(COM);
+            }
+
 
             FILE *fp;
             fp = fopen(file_path, "rb");
@@ -431,6 +458,10 @@ int main(int argc, char *argv[]){
             fseek(fp, 0L, SEEK_SET);
             //s[0] = file_size >> 8;
             //s[1] = file_size & 0xFF;
+
+
+
+            // Now we send the write command
             s[0] = '#';
             sendData(s, 1, DATA_PACKET_FLAG_OFF);
             recvData(s, 1);
@@ -518,7 +549,7 @@ int main(int argc, char *argv[]){
                     printf("data is too big to write to ROM!\n");
                 }
             }
-
+            printf("Didn't recieve write command ack. Aborting...(%c)\n", s[0]);
             fclose(fp);
             closeCOM(COM);
             return 0;
@@ -530,7 +561,7 @@ int main(int argc, char *argv[]){
     }
     else if (printROM == 1){
         printf("PrintROM:%d\nport:%s\n", printROM, port);
-        COM = openCOM(port, BAUD_RATE, 0);
+        COM = openCOM(port, baudrate, 0);
         if (COM != NO_COM){
             sleep_ms(2000);
             s[0] = '?';

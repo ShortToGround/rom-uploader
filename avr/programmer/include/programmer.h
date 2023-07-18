@@ -7,6 +7,8 @@
 #define CPU_BUS_REQ A4
 #define CPU_RESET A5
 
+#define Z80_INTERRUPT A6
+
 #define MAX_ROM_SIZE 32767 // current max due to shift register hardware limit
 // TODO: Have the AVR chip send the buffer size it uses and make this dynamic on the PC end
 #define SER_BUFF_SIZE 64
