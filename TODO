@@ -1,0 +1,3 @@
+• implement a compare option to compare the rom file with the data on the EEPROM/RAM chip
+• Changes the ACK messages to something more standard.
+• Allow dynamic baud rates so the host and programmer can agree on the fastest rate with the least change of errors
