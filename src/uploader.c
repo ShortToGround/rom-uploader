@@ -5,24 +5,25 @@
 #include "../include/serial.h"
 #include "../include/uploader.h"
 
-#define PROGRESS_BAR_LEN 50 // Length of the progress bar during upload
+// TODO: adjust protocol to fit more standard implementations (like using proper ack bytes, SOT and EOT bytes, and etc)
+// Also get rid of the hard coded baud rates and buffer sizes.
 
+// TODO: Re-think the timeout system so that slower hardware can have time to calculate CRC and write memory without stopping the transfer
+
+#define DEBUG
 // Global variables //
 serial_com COM;
 char *file_path = NULL;
 char *port = NULL;
 char *target = NULL;
-uint8_t printROM = 0;
+//uint8_t printROM = 0;
 uint16_t printROMSize = 0;
-//TODO: Modify OpenCOM() so it doesn't need baudrate arg anymore.
-int baudrate = BAUD_RATE;
-// main() arg flags
-uint8_t fileFlag = 0;
-uint8_t portFlag = 0;
-uint8_t writeFlag = 0;
-uint8_t compareFlag = 0;
-uint8_t z80Flag = 0;
-uint8_t arduinoFlag = 0;
+
+// Default values before config
+int baudrate = DEFAULT_BAUD_RATE;
+uint8_t bufferSize = DEFAULT_BUFFER_SIZE;
+uint8_t dataMax = DEFAULT_BUFFER_SIZE - DATA_HEADER_SIZE - DATA_FOOTER_SIZE;
+
 
 // Cross-platform Sleep function - Thanks Bernardo Ramos on stack overflow!
 void sleep_ms(int milliseconds){
@@ -73,13 +74,15 @@ uint16_t crc16_update(uint16_t crc, uint8_t n){
 
 /*
     Sends data out to the serial port. Must supply the output buffer, the number of bytes you are sending, and the data packet flag.
-    The data packet flag will control wether or not we are sending the length byte header and crc footer.
+    The data packet flag will control whether or not we are sending the length byte header and crc footer.
     If the function is called with DATA_PACKET_FLAG_OFF then only the bytes in the output buffer will be sent, otherwise it will add the footer and header before sending
 */
 int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
-    //TODO: maybe pull the crc code blocks out into a function since they are copy and pasted for windows and linux ifdefs
+    //TODO: maybe pull the crc code blocks out into a function since they are copy and pasted for windows and linuxifdefs
     int output, i, j;
-    uint8_t sbuf[BUFFER_SIZE];
+    uint8_t *sbuf;
+    sbuf = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
+
 
 
     uint8_t *outputBuf; // pointer to the output buffer, this is modified based on the data_packet_flag arg
@@ -156,12 +159,11 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
     Grabs data from COM buffer and places it into a static buffer
     if numOfRecvBytes is set to 0 then it will read the same amount as BUFFER_SIZE
 */
-unsigned long recvData(uint8_t s[BUFFER_SIZE], unsigned int numOfRecvBytes){
-    unsigned long recv, i;
-    uint8_t sbuf[BUFFER_SIZE] = {0};
+unsigned long recvData(uint8_t s[], unsigned int numOfRecvBytes){
+    unsigned long recv;
 
     if (numOfRecvBytes == 0){
-        numOfRecvBytes = BUFFER_SIZE - 1;
+        numOfRecvBytes = bufferSize - 1;
     }
 
     #ifdef _WIN32
@@ -174,27 +176,20 @@ unsigned long recvData(uint8_t s[BUFFER_SIZE], unsigned int numOfRecvBytes){
         }
 
         // - 1 on byte size to read to account for the null-terminator slapped on the end of the s buffer for reading later
-        recv = ReadFile(COM, sbuf, numOfRecvBytes, &inBytes, NULL);
+        recv = ReadFile(COM, s, numOfRecvBytes, &inBytes, NULL);
         if (!recv || !inBytes){
             return 0;
         }
 
-        // I'm not sure why I'm not just passing s[] directly instead of doing this with sbuf? Gotta re-think this part I think
-        for (i = 0; i < inBytes; ++i){
-            s[i] = sbuf[i];
-        }
         return inBytes;
     #endif
 
     #ifdef __linux__
-        recv = read(COM, sbuf, numOfRecvBytes);
+        recv = read(COM, s, numOfRecvBytes);
         if (!recv){
             return 0;
         }
-        // I'm not sure why I'm not just passing s[] directly instead of doing this with sbuf? Gotta re-think this part I think
-        for (i = 0; i < recv; ++i){
-            s[i] = sbuf[i];
-        }
+
         return recv;
     #endif
 
@@ -207,10 +202,10 @@ unsigned long recvData(uint8_t s[BUFFER_SIZE], unsigned int numOfRecvBytes){
     Everytime this is called it will write DATA_MAX number of bytes into the buffer (or the last of the remaining bytes)
     it will return 0 when all bytes have been read
 */
-int getBytesFromFile(uint8_t buf[DATA_MAX], FILE *f){
+int getBytesFromFile(uint8_t buf[], FILE *f){
     int c = 0;
     int i;
-    for (i = 0; i < DATA_MAX && c != EOF; ++i){
+    for (i = 0; i < dataMax && c != EOF; ++i){
         c = fgetc(f);
         buf[i] = c;
         if (c == EOF){
@@ -300,7 +295,7 @@ int argBoundsCheck(int argc, int i){
 }
 
 // loads the args into various variables/flags for use
-int parseArgs(int argc, char *argv[]){
+int parseArgs(int argc, char *argv[], struct bitflags *flags){
     // I believe the limit for both windows and linux is 256 serial com ports at once
     int comList[256] = {0};
     int j = 0;
@@ -308,7 +303,7 @@ int parseArgs(int argc, char *argv[]){
         char *arg = argv[i];
         if ((strcmp("-f", arg) == 0) || ((strcmp("--file", arg) == 0))){
             file_path = argv[i + 1];
-            fileFlag = 1;
+            flags->fileFlag = 1;
         }
         else if ((strcmp("-h", arg) == 0) || ((strcmp("--help", arg) == 0))){
             printHelp();
@@ -339,10 +334,10 @@ int parseArgs(int argc, char *argv[]){
         else if ((strcmp("-p", arg) == 0) || ((strcmp("--port", arg) == 0))){
 
             port = argv[i + 1];
-            portFlag = 1;
+            flags->portFlag = 1;
         }
         else if ((strcmp("-r", arg) == 0) || ((strcmp("--read-contents", arg) == 0))){
-            if (writeFlag){
+            if (flags->writeFlag){
                 printf("ERROR: Selected read and write operations at the same time. Please do these separately.\n");
                 exit(1);
             }
@@ -362,28 +357,28 @@ int parseArgs(int argc, char *argv[]){
             }
 
             printf("Dumping ROM...\n");
-            printROM = 1;
+            flags->printROM = 1;
         }
         else if ((strcmp("-t", arg) == 0) || ((strcmp("--target", arg) == 0))){
             target = argv[i + 1];
             if ((strcmp("z80", target) == 0)){
-                if (arduinoFlag){
+                if (flags->arduinoFlag){
                     printf("ERROR: Selected more than 1 target machine type.\n");
                     exit(1);
                 }
                 else{
-                    ++z80Flag;
+                    flags->z80Flag = 1;
                     baudrate = 115200;
                     printf("z80 targeted, seeing baudrate to 115200\n");
                 }
             }
         }
         else if ((strcmp("-w", arg) == 0) || ((strcmp("--write", arg) == 0))){
-            if (printROM){
+            if (flags->printROM){
                 printf("ERROR: Selected read and write operations at the same time. Please do these separately.\n");
                 exit(1);
             }
-            writeFlag = 1;
+            flags->writeFlag = 1;
         }
     }
     
@@ -437,26 +432,39 @@ void clearInputBuf(serial_com COM){
 }
 
 int main(int argc, char *argv[]){
-    uint8_t s[BUFFER_SIZE] = {0};
-    uint8_t chunk[sizeof(s)];
+    
+    // main() arg flags
+    struct bitflags flags = {0}; // init all flags to 0
+
+    parseArgs(argc, argv, &flags);
+    
+    uint8_t *s; 
+    s = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
+    memset(s, 0, sizeof(bufferSize * sizeof(uint8_t)));
+    
+    uint8_t *chunk;
+    chunk = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
+
     uint8_t timeoutct = 0;
     unsigned long i = 1;
     long file_size, data_processed = 0;
 
-    parseArgs(argc, argv);
+
+
 
     // if the port flag wasn't set then we will just set the port to some defined default values
-    if (!portFlag){
+    if (!flags.portFlag){
         printf("no port selected, defaulting to %s\n", defaultPort);
         port = defaultPort; // defined in #ifdefs
     }
+
     // if file_path and port aren't empty then let's try to upload some data!
-    if (fileFlag && writeFlag){
+    if (flags.fileFlag && flags.writeFlag){
         COM = openCOM(port, baudrate, 0);
         
         if (COM != NO_COM){
 
-            if (z80Flag){
+            if (flags.z80Flag){
                 s[0] = '2';
                 s[1] = 13; // Carriage return
                 sendData(s, 2, DATA_PACKET_FLAG_OFF);
@@ -506,18 +514,19 @@ int main(int argc, char *argv[]){
                 char progress_bar[PROGRESS_BAR_LEN] = {' '}; // the printProgress function will change its bar length depending on the size of this array
 
                 
-                // let's make sure the rom_size the arduino thinks is coming is correct
+                // let's make sure the rom_size the device thinks is coming is correct
                 if (file_size == tmp){
 
                     // print the empty 00.0% bar to the screen
-                    clearScreen();
-                    printf("Upload: [");
-                    printf("%s", progress_bar);
-                    putchar(']');
-                    printf(" 00.0%%");
+                    // clearScreen();
+                    // printf("Upload: [");
+                    // printf("%s", progress_bar);
+                    // putchar(']');
+                    // printf(" 00.0%%");
                     
                     // Start gathering bytes from the ROM file and attempt to upload them to the device
                     while ((i = getBytesFromFile(chunk, fp))){
+                        // TODO: Add heartbeat section here for slower devices... like my Z80 board
                         // seriously crude timeout control
                         while (timeoutct < 3){
                             sendData(chunk, i, DATA_PACKET_FLAG_ON);
@@ -585,8 +594,8 @@ int main(int argc, char *argv[]){
             exit(1);
         }
     }
-    else if (printROM == 1){
-        printf("PrintROM:%d\nport:%s\n", printROM, port);
+    else if (flags.printROM){
+        printf("PrintROM:%d\nport:%s\n", flags.printROM, port);
         COM = openCOM(port, baudrate, 0);
         if (COM != NO_COM){
             sleep_ms(2000);
@@ -608,12 +617,15 @@ int main(int argc, char *argv[]){
         }
         closeCOM(COM);
     }
-    else if (compareFlag && fileFlag){
+    else if (flags.compareFlag && flags.fileFlag){
         // TODO: ADD THIS IN
         uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
         free(rombuf);
     }
     else{
+        #ifdef DEBUG
+            printf("%X, %X, %X, %X, %X, %X, %X", flags.fileFlag, flags.portFlag, flags.writeFlag, flags.compareFlag, flags.z80Flag, flags.arduinoFlag, flags.printROM);
+        #endif
         printf("Not enough arguments\n");
         exit(1);
     }
