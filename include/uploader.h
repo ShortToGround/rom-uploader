@@ -31,6 +31,10 @@ struct bitflags {
     uint8_t printROM : 1;
 };
 
+#define HEADER_START 1
+#define TRANSMIT_END 4
+#define ACK_CHAR 6
+
 #define DEFAULT_BAUD_RATE 9600
 #define DEFAULT_BUFFER_SIZE 64
 #define DATA_MAX BUFFER_SIZE - 3 // -3 accounts for the header and footer added to the data chunk when sending

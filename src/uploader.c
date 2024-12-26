@@ -10,7 +10,6 @@
 
 // TODO: Re-think the timeout system so that slower hardware can have time to calculate CRC and write memory without stopping the transfer
 
-#define DEBUG
 // Global variables //
 serial_com COM;
 char *file_path = NULL;
@@ -236,7 +235,7 @@ void printProgress(long file_size, long processed_data){
     if (processed_data != 0){
         double out = ((double) processed_data) / ((double) file_size / (double) PROGRESS_BAR_LEN);
         putchar(13);
-        // prints the '#' at the appropriate spot
+        // prints the ACK_CHAR at the appropriate spot
         for (int i = 0; i < (int)(out + 0.5); ++i){
             printf("\x1b[%dC#", 9 + i);
             putchar(13);
@@ -499,7 +498,7 @@ int main(int argc, char *argv[]){
             s[0] = '#';
             sendData(s, 1, DATA_PACKET_FLAG_OFF);
             recvData(s, 1);
-            if (s[0] == '#'){
+            if (s[0] == ACK_CHAR){
                 // Break the 16-bit file_size into 2 bytes and stick then in the s[] buffer
                 u16tou8(s, file_size);
                 // call sendData and tell it to only send the first 2 bytes (that contain our file_size) and only send this data without adding the header and footer
@@ -518,11 +517,11 @@ int main(int argc, char *argv[]){
                 if (file_size == tmp){
 
                     // print the empty 00.0% bar to the screen
-                    // clearScreen();
-                    // printf("Upload: [");
-                    // printf("%s", progress_bar);
-                    // putchar(']');
-                    // printf(" 00.0%%");
+                    clearScreen();
+                    printf("Upload: [");
+                    printf("%s", progress_bar);
+                    putchar(']');
+                    printf(" 00.0%%");
                     
                     // Start gathering bytes from the ROM file and attempt to upload them to the device
                     while ((i = getBytesFromFile(chunk, fp))){
@@ -571,10 +570,11 @@ int main(int argc, char *argv[]){
                     putchar('\n');
                     
                     // Now we will get the output back from the chip
-                    uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
-                    unsigned long numOfBytes = getROMFromMachine(s, rombuf);
-                    printRomData(rombuf, numOfBytes);
-                    free(rombuf);
+                    //TODO: Temp commented out
+                    // uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
+                    // unsigned long numOfBytes = getROMFromMachine(s, rombuf);
+                    // printRomData(rombuf, numOfBytes);
+                    // free(rombuf);
 
                     // make the cursor visible again
                     printf("\33[?25h");
@@ -623,9 +623,6 @@ int main(int argc, char *argv[]){
         free(rombuf);
     }
     else{
-        #ifdef DEBUG
-            printf("%X, %X, %X, %X, %X, %X, %X", flags.fileFlag, flags.portFlag, flags.writeFlag, flags.compareFlag, flags.z80Flag, flags.arduinoFlag, flags.printROM);
-        #endif
         printf("Not enough arguments\n");
         exit(1);
     }
