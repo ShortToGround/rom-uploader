@@ -80,7 +80,14 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
     // TODO: Add check to see if num_bytes + header + footer will be larger than bufferSize
     int output, i, j;
     uint8_t *sbuf;
+    printf("sendData\n");
     sbuf = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
+
+    // let's make sure that num_bytes + the header/footer isn't larger than our buffer size
+    if (num_bytes < (bufferSize - DATA_HEADER_SIZE - DATA_FOOTER_SIZE)){
+        printf("Somehow the number of data bytes given to sendData to send are greater than the serial buffer + header/footer data. Exiting.");
+        exit(1);
+    }
 
     uint8_t *outputBuf; // pointer to the output buffer, this is modified based on the data_packet_flag arg
     // if the DATA_PACKET_FLAG_OFF arg is used then we don't need an extra buffer and we can just send the bytes from the supplied s array  
@@ -134,6 +141,7 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
                         num_bytes,      // No of bytes to write into the port
                         &bytesSent,     // No of bytes written to the port
                         NULL);
+        free(sbuf);
         if (output == 0){
             return 0;
         }
@@ -142,13 +150,14 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
 
     #ifdef __linux__
         output = write(COM, outputBuf, num_bytes);
+        free(sbuf);
 
         if (output == -1){
             return 0;
         }
         return 1;
     #endif
-
+    free(sbuf);
     return 0;
 }
 
@@ -251,9 +260,10 @@ void printProgress(long file_size, long processed_data){
 void printHelp(){
     printf("Usage: comm [OPTIONS] [--file [INFILE]] [--port [PORTNAME]] [--read-contents [num_of_bytes]] --write\n");
     printf("Options\n");
-    printf("\t-b, --baud\tOverrides default baud rate.\n");
+    printf("\t-b, --baud\tOverrides default baud rate (%d).\n", DEFAULT_BAUD_RATE);
+    printf("\t-B, --buffer\tOverrides default buffer size (%d bytes).\n", DEFAULT_BUFFER_SIZE);
     //TODO:
-    printf("\t-c, --compare\tCompares bin/hex file with the current program on the machine.\n");
+    // printf("\t-c, --compare\tCompares bin/hex file with the current program on the machine.\n");
     //TODO:
     printf("\t-ch, --chiptype\tspecifiy if this is a ROM or RAM chip to adjust write timings\n");
     printf("\t-f, --file\tinput hex file to send to the programmer\n");
@@ -308,7 +318,7 @@ int parseArgs(int argc, char *argv[], struct bitflags *flags){
         }
         else if ((strcmp("-b", arg) == 0) || ((strcmp("--baud", arg) == 0))){
             if(argBoundsCheck(argc, i)){
-                printf("No baud rate specified. Using default rate.\n");
+                printf("No baud rate specified. Using default rate (%d baud).\n", DEFAULT_BAUD_RATE);
             }
             else{
                 if (isStrNum(argv[i + 1])){
@@ -317,7 +327,27 @@ int parseArgs(int argc, char *argv[], struct bitflags *flags){
                     printf("baudrate set to %d\n", baudrate);
                 }
                 else{
-                    printf("Invalid baud rate selected. Using default rate (%d).\n", DEFAULT_BAUD_RATE);
+                    printf("Invalid baud rate selected. Using default rate (%d baud).\n", DEFAULT_BAUD_RATE);
+                }
+            }
+        }
+        else if ((strcmp("-B", arg) == 0) || ((strcmp("--buffer", arg) == 0))){
+            if(argBoundsCheck(argc, i)){
+                printf("No buffer size specified. Using default size (%d bytes).\n", DEFAULT_BUFFER_SIZE);
+            }
+            else{
+                if (isStrNum(argv[i + 1])){
+                    if (atoi(argv[i + 1]) < (DATA_HEADER_SIZE + DATA_FOOTER_SIZE + 1)){
+                        printf("Select buffer size is too small. Buffer must be at least %d bytes large.\n", (DATA_HEADER_SIZE + DATA_FOOTER_SIZE + 1));
+                        exit(1);
+                    }
+                    bufferSize = atoi(argv[i + 1]);
+                    dataMax = bufferSize - DATA_HEADER_SIZE - DATA_FOOTER_SIZE;
+                    ++i;
+                    printf("bufferSize set to %d bytes\n", bufferSize);
+                }
+                else{
+                    printf("Invalid buffer size selected. Using default size (%d).\n", DEFAULT_BUFFER_SIZE);
                 }
             }
         }
@@ -420,11 +450,11 @@ int main(int argc, char *argv[]){
     struct bitflags flags = {0}; // init all flags to 0
 
     parseArgs(argc, argv, &flags);
-    
+    printf("1\n");
     uint8_t *s; 
     s = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
-    memset(s, 0, sizeof(bufferSize * sizeof(uint8_t)));
-    
+    memset(s, 0, bufferSize * sizeof(uint8_t));
+    printf("2\n");
     uint8_t *chunk;
     chunk = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
 
@@ -560,6 +590,8 @@ int main(int argc, char *argv[]){
             //printf("Didn't recieve write command ack. Aborting...(%c)\n", s[0]);
             fclose(fp);
             closeCOM(COM);
+            free(chunk);
+            free(s);
             return 0;
         }
         else{
@@ -580,6 +612,7 @@ int main(int argc, char *argv[]){
             if (s[0] == '?'){
                 u16tou8(s, printROMSize);
                 sendData(s, 2, DATA_PACKET_FLAG_OFF);
+                printf("3\n");
                 uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
                 unsigned long numOfBytes = getROMFromMachine(s, rombuf);
                 printRomData(rombuf, numOfBytes);
@@ -599,5 +632,6 @@ int main(int argc, char *argv[]){
         printf("Not enough arguments\n");
         exit(1);
     }
+    free(s);
     return 0;
 }
