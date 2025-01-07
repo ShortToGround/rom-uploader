@@ -16,24 +16,6 @@ Luckily, arduinos reset when you connect to them via their serial interface, so 
 
 */
 
-// This is used for prototyping my Z80 and has nothing to do with the actual functionality of this program
-// This will enable A10 as PWM output and adjust the freq down close to 60Hz @ 50% duty cycle
-void startPWM(void){
-    digitalWrite(Z80_INTERRUPT, LOW);
-    pinMode(Z80_INTERRUPT, OUTPUT);
-
-    // This is roughly 62.5Hz without counting in the function calls overhead
-    while(1){
-        digitalWrite(Z80_INTERRUPT, HIGH);
-        delay(8);
-        digitalWrite(Z80_INTERRUPT, LOW);
-        delay(8);
-    }
-
-
-
-}
-
 int userInput;
 int skipErase;
 uint16_t address = 0;
@@ -125,34 +107,6 @@ void send_uint16(uint16_t data){
 
     send_byte(msb);
     send_byte(lsb);
-}
-
-void runMode(void){
-    pinMode(13, INPUT);
-    // digitalWrite(A0, LOW);
-    // digitalWrite(A1, HIGH);
-    // digitalWrite(A2, HIGH);
-    // digitalWrite(A3, LOW);
-    // digitalWrite(A4, HIGH);
-    // digitalWrite(A5, HIGH);
-
-    // does the same as above but faster and with less memory
-    PORTC |= 0b00110110;
-    
-    z80Reset();
-}
-
-void programMode(void){
-    pinMode(13, OUTPUT);
-    digitalWrite(A0, HIGH);
-    digitalWrite(A1, LOW);
-    digitalWrite(A2, LOW);
-    digitalWrite(A3, HIGH);
-    digitalWrite(A4, LOW);
-    digitalWrite(A5, LOW);
-
-    // does the same as above but faster and with less memory
-    //PORTC &= ~(0b00110110);
 }
 
 void z80Reset(void){
@@ -253,29 +207,60 @@ void initSerial(void){
 }
 
 
-void setup(void) {
-    pinMode(SHIFT_DATA, OUTPUT);
-    pinMode(SHIFT_CLK, OUTPUT);
-    pinMode(SHIFT_LATCH, OUTPUT);
-    pinMode(Z80_INTERRUPT, INPUT);
+void runMode(void){
+    digitalWrite(SHIFT_REG_OE, HIGH);
+    for (int pin = EEPROM_D0; pin <= EEPROM_D7; ++pin) {
+        pinMode(pin, INPUT);
+    }
 
-    // TODO: See if I need this here with my current setup
     digitalWrite(WRITE_EN, HIGH);
+    pinMode(WRITE_EN, INPUT);
+    digitalWrite(EEPROM_CS, HIGH); // A2
+    pinMode(EEPROM_CS, INPUT);
+    
+    digitalWrite(CPU_BUS_REQ, HIGH);
+    z80Reset();
+    pinMode(CPU_BUS_REQ, INPUT);
+    pinMode(CPU_RESET, INPUT);
+
+}
+
+void programMode(void){
+    pinMode(CPU_BUS_REQ, OUTPUT);
+    digitalWrite(CPU_BUS_REQ, LOW);
 
     pinMode(WRITE_EN, OUTPUT);
+    digitalWrite(WRITE_EN, HIGH);
 
+    pinMode(EEPROM_CS, OUTPUT);
+    digitalWrite(EEPROM_CS, LOW);
+
+    digitalWrite(SHIFT_REG_OE, LOW);
+
+    pinMode(CPU_RESET, OUTPUT);
+    digitalWrite(CPU_RESET, HIGH);
+}
+
+void setup(void) {
+    
+    pinMode(SHIFT_REG_OE, OUTPUT);// This pin should also have a pullup resistor on it to keep it from going low until we want it to.
+    digitalWrite(SHIFT_REG_OE, HIGH);
+    pinMode(SHIFT_LATCH, OUTPUT); 
+    pinMode(SHIFT_DATA, OUTPUT);
+    pinMode(SHIFT_CLK, OUTPUT);
+    
+    // By default all CPU bus pins should be set to INPUT on boot
+    // but we are going to make super sure they are
+    // We should not set any outputs until the device is in program mode
+    pinMode(WRITE_EN, INPUT);
+    pinMode(EEPROM_CS, INPUT);
+    pinMode(CPU_BUS_REQ, INPUT);
+    pinMode(CPU_RESET, INPUT);
+    // Set all data signals to INPUT/Float
+    for (int pin = EEPROM_D0; pin <= EEPROM_D7; ++pin) {
+        pinMode(pin, INPUT);
+    }
     initSerial();
-
-    pinMode(A0, OUTPUT);
-    pinMode(A1, OUTPUT);
-    pinMode(A2, OUTPUT);
-    pinMode(A3, OUTPUT);
-    pinMode(A4, OUTPUT);
-    pinMode(A5, OUTPUT);
-
-    // does the same as the pinMode lines above but faster and uses less memory
-    //DDRC = DDRC | 0b00111111;
-
     runMode();
 }
 
@@ -291,7 +276,7 @@ void loop(void) {
         c = get_byte();
         if (c == '#'){ 
             // Now we know the programmer wants to send data, let's send an ACK back first
-            send_byte('#');
+            send_byte(ACK);
             //send_byte('#'); // Our ACK, 1 for success
             
             // isolates the ROM/RAM chip so it can be programmed without interference from the CPU
@@ -327,7 +312,6 @@ void loop(void) {
                     printContents(rom_size);
 
                     runMode();
-                    startPWM();
                     break;
                 }
                 // Now we grab the next n bytes, where n is equal to the length we just received
@@ -347,18 +331,17 @@ void loop(void) {
 
                 // Lastly, we see if they match
                 if (crc16_1 == crc16_2){
-                    send_byte(1); // Success ACK
+                    send_byte(ACK); // Success ACK
                     crc16_2 = 0; // set the calculated checksum to zero for the next chunk
                     // if they match then we will save the data to the memory IC
 
                     for (i = 0; i < length; ++i){
                         writeEEPROM(address, sbuf[i], RAM);
-                        send_byte('.'); // This is our serial heartbeat which keeps the computer app from timing out
                         ++address;
                     }
 
                     // Now we will send our ACK saying we are done writing to the memory IC and want more data
-                    send_byte(1);
+                    send_byte(ACK);
                 }
                 else{
                     send_uint16(crc16_2); // Fail ACK
