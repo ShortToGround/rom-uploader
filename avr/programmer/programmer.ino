@@ -265,7 +265,7 @@ void setup(void) {
 }
 
 void loop(void) {
-    uint8_t i, c, length, rom_size_msb, rom_size_lsb, crc8_1, crc8_2;
+    uint8_t i, c, length, inverse_length, rom_size_msb, rom_size_lsb, crc8_1, crc8_2;
     uint16_t rom_size, crc16_1 = 0, crc16_2 = 0;
     uint8_t sbuf[SER_BUFF_SIZE];
 
@@ -305,6 +305,12 @@ void loop(void) {
             while (1){
                 // the next byte should be our data chunk length
                 length = get_byte();
+                inverse_length = get_byte();
+                inverse_length = ~inverse_length;
+                if (length != inverse_length){
+                    // Data was corrupted, we need to ask for it again
+                    send_byte(NAK);
+                }
                 //send_byte(c);
                 if (length == 0){
                     // We have uploaded the entire ROM
