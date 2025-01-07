@@ -520,7 +520,7 @@ int main(int argc, char *argv[]){
                             }
                             else{
                                 // NAK here means that the data was likely corrupted and needs to be resent
-                                (s[0] == NAK){
+                                if (s[0] == NAK){
                                     printProgress(file_size, data_processed);
                                     ++retransmissionCount;
                                 }
