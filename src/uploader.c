@@ -428,7 +428,7 @@ int main(int argc, char *argv[]){
     uint8_t *chunk;
     chunk = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
 
-    uint8_t timeoutct = 0;
+    uint8_t retransmissionCount = 0;
     unsigned long i = 1;
     long file_size, data_processed = 0;
 
@@ -499,17 +499,17 @@ int main(int argc, char *argv[]){
                     
                     // Start gathering bytes from the ROM file and attempt to upload them to the device
                     while ((i = getBytesFromFile(chunk, fp))){
-                        // TODO: Add heartbeat section here for slower devices... like my Z80 board
-                        // seriously crude timeout control
-                        while (timeoutct < 3){
+                        while (retransmissionCount < 3){
                             sendData(chunk, i, DATA_PACKET_FLAG_ON);
                             recvData(s, 1);
-                            // ACK means successful reception and to send the next chunk
+
+                            // ACK means CRC data matched
                             if (s[0] == ACK){
                                 data_processed += i;
                                 printProgress(file_size, data_processed);
-                                timeoutct = 0;
+                                retransmissionCount = 0;
 
+                                // ACK means data was written to memory by the device and to send the next chunk
                                 if (s[0] == ACK){
                                     break;
                                 }
@@ -519,10 +519,13 @@ int main(int argc, char *argv[]){
                                 break;
                             }
                             else{
-                                printProgress(file_size, data_processed);
-                                ++timeoutct;
+                                // NAK here means that the data was likely corrupted and needs to be resent
+                                (s[0] == NAK){
+                                    printProgress(file_size, data_processed);
+                                    ++retransmissionCount;
+                                }
                             }
-                            if (timeoutct > 2){
+                            if (retransmissionCount > 2){
                                 printf("\nError sending chunk, tried 3 times without success. Aborting.\n");
                                 // make the cursor visible again
                                 printf("\33[?25h");
