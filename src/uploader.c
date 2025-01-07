@@ -80,7 +80,6 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
     // TODO: Add check to see if num_bytes + header + footer will be larger than bufferSize
     int output, i, j;
     uint8_t *sbuf;
-    printf("sendData\n");
     sbuf = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
 
     // let's make sure that num_bytes + the header/footer isn't larger than our buffer size
@@ -450,11 +449,9 @@ int main(int argc, char *argv[]){
     struct bitflags flags = {0}; // init all flags to 0
 
     parseArgs(argc, argv, &flags);
-    printf("1\n");
     uint8_t *s; 
     s = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
     memset(s, 0, bufferSize * sizeof(uint8_t));
-    printf("2\n");
     uint8_t *chunk;
     chunk = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
 
@@ -612,7 +609,6 @@ int main(int argc, char *argv[]){
             if (s[0] == '?'){
                 u16tou8(s, printROMSize);
                 sendData(s, 2, DATA_PACKET_FLAG_OFF);
-                printf("3\n");
                 uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
                 unsigned long numOfBytes = getROMFromMachine(s, rombuf);
                 printRomData(rombuf, numOfBytes);
