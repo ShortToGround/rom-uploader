@@ -524,7 +524,7 @@ int main(int argc, char *argv[]){
                                 ++retransmissionCount;
                             }
                             else{
-                                TODO: // Any results besides ACK or NAK will go here until I add more
+                                //TODO: Any results besides ACK or NAK will go here until I add more
                                 printProgress(file_size, data_processed);
                                 ++retransmissionCount;
                             }
