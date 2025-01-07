@@ -129,11 +129,10 @@ void eraseMemoryIC(uint8_t chiptype){
     // Erase entire memory IC
     for (i = 0; i <= eraseBytes; i += 1){
         writeEEPROM(i, 0xFF, chiptype);
-        send_byte('.');
     }
 
-    // ACK to signal to the computer app that we are done writing and ready for the next operation
-    send_byte(1);
+    // ACK to signal to the uploader that we are done writing and ready for the next operation
+    //send_byte(ACK);
 }
 
 
@@ -314,9 +313,7 @@ void loop(void) {
                 //send_byte(c);
                 if (length == 0){
                     // We have uploaded the entire ROM
-
                     printContents(rom_size);
-
                     runMode();
                     break;
                 }
