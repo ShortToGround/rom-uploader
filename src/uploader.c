@@ -77,12 +77,10 @@ uint16_t crc16_update(uint16_t crc, uint8_t n){
     If the function is called with DATA_PACKET_FLAG_OFF then only the bytes in the output buffer will be sent, otherwise it will add the footer and header before sending
 */
 int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
-    //TODO: maybe pull the crc code blocks out into a function since they are copy and pasted for windows and linuxifdefs
+    // TODO: Add check to see if num_bytes + header + footer will be larger than bufferSize
     int output, i, j;
     uint8_t *sbuf;
     sbuf = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
-
-
 
     uint8_t *outputBuf; // pointer to the output buffer, this is modified based on the data_packet_flag arg
     // if the DATA_PACKET_FLAG_OFF arg is used then we don't need an extra buffer and we can just send the bytes from the supplied s array  
@@ -95,9 +93,9 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
             outputBuf = sbuf;
             // First byte in the data chunk will be our data byte count
             sbuf[0] = num_bytes;
-
+            sbuf[1] = (uint8_t) ~num_bytes; // Cast just in case it tries to inverse that into a 32bit number or something
             // Populate the actual chunk of data
-            for (i = 1, j = 0; j < num_bytes; ++i, ++j){
+            for (i = 2, j = 0; j < num_bytes; ++i, ++j){
                 sbuf[i] = s[j];
             }
 
@@ -114,14 +112,14 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
 
             // To get the least sig byte we & crc and 0xFF to clear the most significant byte
             crc_least_sig = crc & 0xFF;
-
+            
+            
             // Add the crc bytes to the end of the data chunk
-            sbuf[++i] = crc_most_sig;
-            sbuf[++i] = crc_least_sig;
-
+            sbuf[num_bytes + DATA_HEADER_SIZE] = crc_most_sig;
+            sbuf[num_bytes + DATA_HEADER_SIZE + 1] = crc_least_sig;
             // Because we've added a len byte and 2 crc bytes we need to make sure to change num_bytes to match
             // num_bytes is used to tell the WriteFile how many bytes to send
-            num_bytes += 3;
+            num_bytes += DATA_HEADER_SIZE + DATA_FOOTER_SIZE;
     }
     else{
         // set the outputBuf pointer to s
