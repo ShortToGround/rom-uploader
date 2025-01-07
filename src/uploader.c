@@ -518,12 +518,15 @@ int main(int argc, char *argv[]){
                                 }
                                 break;
                             }
+                            // NAK here means that the data was likely corrupted and needs to be resent
+                            else if (s[0] == NAK){
+                                printProgress(file_size, data_processed);
+                                ++retransmissionCount;
+                            }
                             else{
-                                // NAK here means that the data was likely corrupted and needs to be resent
-                                if (s[0] == NAK){
-                                    printProgress(file_size, data_processed);
-                                    ++retransmissionCount;
-                                }
+                                TODO: // Any results besides ACK or NAK will go here until I add more
+                                printProgress(file_size, data_processed);
+                                ++retransmissionCount;
                             }
                             if (retransmissionCount > 2){
                                 printf("\nError sending chunk, tried 3 times without success. Aborting.\n");
