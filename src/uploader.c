@@ -235,7 +235,7 @@ void printProgress(long file_size, long processed_data){
     if (processed_data != 0){
         double out = ((double) processed_data) / ((double) file_size / (double) PROGRESS_BAR_LEN);
         putchar(13);
-        // prints the ACK_CHAR at the appropriate spot
+        // prints the ACK at the appropriate spot
         for (int i = 0; i < (int)(out + 0.5); ++i){
             printf("\x1b[%dC#", 9 + i);
             putchar(13);
@@ -263,7 +263,7 @@ void printHelp(){
     printf("\t-l, --list\tlist all available serial ports on the system and then exits\n");
     printf("\t-p, --port\tselect the programmer's serial port\n");
     printf("\t-r, --read-contents\tprint the contents of the ROM. If number of bytes isn't supplied (or if 0 is entered) then it will dump the max rom size worth of bytes.\n");
-    printf("\t-t, --target\tselect the target (arduino or z80)\n");
+    // printf("\t-t, --target\tselect the target (arduino or z80)\n");
     printf("\t-w, --write\tWrites bin/hex file to the programmer. Requires a COM port, an input file.\n");
     // TODO: Add option to adjust timeout
     printf("\n");
@@ -319,7 +319,7 @@ int parseArgs(int argc, char *argv[], struct bitflags *flags){
                     printf("baudrate set to %d\n", baudrate);
                 }
                 else{
-                    printf("Invalid baud rate selected. Using default rate (%d).\n", BAUD_RATE);
+                    printf("Invalid baud rate selected. Using default rate (%d).\n", DEFAULT_BAUD_RATE);
                 }
             }
         }
@@ -357,20 +357,6 @@ int parseArgs(int argc, char *argv[], struct bitflags *flags){
 
             printf("Dumping ROM...\n");
             flags->printROM = 1;
-        }
-        else if ((strcmp("-t", arg) == 0) || ((strcmp("--target", arg) == 0))){
-            target = argv[i + 1];
-            if ((strcmp("z80", target) == 0)){
-                if (flags->arduinoFlag){
-                    printf("ERROR: Selected more than 1 target machine type.\n");
-                    exit(1);
-                }
-                else{
-                    flags->z80Flag = 1;
-                    baudrate = 115200;
-                    printf("z80 targeted, seeing baudrate to 115200\n");
-                }
-            }
         }
         else if ((strcmp("-w", arg) == 0) || ((strcmp("--write", arg) == 0))){
             if (flags->printROM){
@@ -462,20 +448,10 @@ int main(int argc, char *argv[]){
         COM = openCOM(port, baudrate, 0);
         
         if (COM != NO_COM){
-
-            if (flags.z80Flag){
-                s[0] = '2';
-                s[1] = 13; // Carriage return
-                sendData(s, 2, DATA_PACKET_FLAG_OFF);
-                clearInputBuf(COM);
-            }
-            // Then we are targeting an arduino
-            else{ 
-                // device is an arduino board and this gives it time to reboot
-                sleep_ms(2000);
-                // Arduinos also send some garbage data when they first boot so let's clear the COM input buffer
-                clearInputBuf(COM);
-            }
+            // Sleep added here for arduino devices that may need time to boot when first connecting to them
+            sleep_ms(2000);
+            // Arduinos also send some garbage data when they first boot so let's clear the COM input buffer
+            clearInputBuf(COM);
 
 
             FILE *fp;
@@ -498,7 +474,7 @@ int main(int argc, char *argv[]){
             s[0] = '#';
             sendData(s, 1, DATA_PACKET_FLAG_OFF);
             recvData(s, 1);
-            if (s[0] == ACK_CHAR){
+            if (s[0] == ACK){
                 // Break the 16-bit file_size into 2 bytes and stick then in the s[] buffer
                 u16tou8(s, file_size);
                 // call sendData and tell it to only send the first 2 bytes (that contain our file_size) and only send this data without adding the header and footer
@@ -517,7 +493,7 @@ int main(int argc, char *argv[]){
                 if (file_size == tmp){
 
                     // print the empty 00.0% bar to the screen
-                    clearScreen();
+                    //clearScreen();
                     printf("Upload: [");
                     printf("%s", progress_bar);
                     putchar(']');
@@ -530,20 +506,13 @@ int main(int argc, char *argv[]){
                         while (timeoutct < 3){
                             sendData(chunk, i, DATA_PACKET_FLAG_ON);
                             recvData(s, 1);
-                            // ACK of 1 means successful reception and to send the next chunk
-                            if (s[0] == 1){
-                                // Now we listen for the heartbeats to stop and recv another ack of 1 to say it is ready for more data
+                            // ACK means successful reception and to send the next chunk
+                            if (s[0] == ACK){
                                 data_processed += i;
                                 printProgress(file_size, data_processed);
                                 timeoutct = 0;
 
-                                // Serial heartbeat while the programmer writes to the memory IC
-                                // possible place where the program could hang, need to implement a timeout here too
-                                s[0] = '.'; // Lazy way to start the while loop
-                                while (s[0] == '.'){
-                                    recvData(s, 1);
-                                }
-                                if (s[0] == 1){
+                                if (s[0] == ACK){
                                     break;
                                 }
                                 else{
