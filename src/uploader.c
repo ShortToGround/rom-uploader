@@ -83,8 +83,8 @@ int sendData(uint8_t s[], uint8_t num_bytes, uint8_t data_packet_flag){
     sbuf = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
 
     // let's make sure that num_bytes + the header/footer isn't larger than our buffer size
-    if (num_bytes < (bufferSize - DATA_HEADER_SIZE - DATA_FOOTER_SIZE)){
-        printf("Somehow the number of data bytes given to sendData to send are greater than the serial buffer + header/footer data. Exiting.");
+    if (num_bytes > (bufferSize - DATA_HEADER_SIZE - DATA_FOOTER_SIZE)){
+        printf("Somehow the number of data bytes given to sendData to send are greater than the serial buffer + header/footer data. Exiting.\n");
         exit(1);
     }
 
@@ -418,6 +418,7 @@ unsigned long getROMFromMachine(uint8_t s[], uint8_t rombuf[]){
     return j;
 }
 
+// TODO: "ROM Size" is not the correct term needed when just reading with read command vs writing then reading... Fix it
 void printRomData(uint8_t rombuf[], unsigned long byteCount){
     uint16_t i;
 
@@ -455,7 +456,7 @@ int main(int argc, char *argv[]){
     uint8_t *chunk;
     chunk = (uint8_t *) malloc(bufferSize * sizeof(uint8_t));
 
-    uint8_t retransmissionCount = 0;
+    uint16_t retransmissionCount = 0;
     unsigned long i = 1;
     long file_size, data_processed = 0;
 
@@ -540,10 +541,15 @@ int main(int argc, char *argv[]){
                                 if (s[0] == ACK){
                                     break;
                                 }
+                                else if (s[0] == NAK){
+                                    // This means the device would like a retransmission
+                                    printProgress(file_size, data_processed);
+                                    ++retransmissionCount;
+                                }
                                 else{
                                     // If we get here then the programmer didn't ACK after the write so this means something really strange happened
+                                    
                                 }
-                                break;
                             }
                             // NAK here means that the data was likely corrupted and needs to be resent
                             else if (s[0] == NAK){
@@ -563,18 +569,24 @@ int main(int argc, char *argv[]){
                             }
                         }
                     }
-                    // Now that the ROM has been sent, let's send a 0 length 0 byte "chunk" to let the programmer know we are done
+                    // Now that the ROM has been sent, let's send a 0 length 1 byte "chunk" to let the programmer know we are done
                     s[0] = 0;
-                    // Sends a chunk with a length byte of 0, so the programmer will assume there is no more data to send.
-                    sendData(s, 1, DATA_PACKET_FLAG_OFF);
+                    s[1] = 255; // Inverse of 0
+                    // Sends a chunk with a length byte of 0, so the programmer will know there is no more data to send.
+                    sendData(s, 2, DATA_PACKET_FLAG_OFF);
                     putchar('\n');
-                    
-                    // Now we will get the output back from the chip
-                    //TODO: Temp commented out
-                    // uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
-                    // unsigned long numOfBytes = getROMFromMachine(s, rombuf);
-                    // printRomData(rombuf, numOfBytes);
-                    // free(rombuf);
+
+                    // TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO: For some reason I have an extra ACK being gathered from the client device????
+                    // I have to grab it here or it will mess up the printRomData output... 
+                    recvData(s, 1); 
+
+                    // TODO: fix getROMFromMachine so where it only pulls the desired size and doesn't have to timeout to continue
+                    // Now we will get the output back from the client device
+                    uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
+                    unsigned long numOfBytes = getROMFromMachine(s, rombuf);
+                    printRomData(rombuf, numOfBytes);
+                    printf("\nRetransmissions: %d", retransmissionCount);
+                    free(rombuf);
 
                     // make the cursor visible again
                     printf("\33[?25h");
