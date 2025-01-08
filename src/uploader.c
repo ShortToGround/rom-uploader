@@ -536,6 +536,7 @@ int main(int argc, char *argv[]){
                                 retransmissionCount = 0;
 
                                 // ACK means data was written to memory by the device and to send the next chunk
+                                recvData(s, 1);
                                 if (s[0] == ACK){
                                     break;
                                 }
@@ -574,11 +575,6 @@ int main(int argc, char *argv[]){
                     sendData(s, 2, DATA_PACKET_FLAG_OFF);
                     putchar('\n');
 
-                    // TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO: For some reason I have an extra ACK being sent from the client device????
-                    // I have to grab it here or it will mess up the printRomData output... 
-                    recvData(s, 1); 
-
-                    // TODO: fix getROMFromMachine so where it only pulls the desired size and doesn't have to timeout to continue
                     // Now we will get the output back from the client device
                     uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
                     getROMFromMachine(s, rombuf, file_size);
