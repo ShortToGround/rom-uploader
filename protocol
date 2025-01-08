@@ -1,43 +1,55 @@
-Overview of my very simple flow control protocol 
+Overview of my very simple flow control protocol
+Version 1.1
 
+Planned improvements:
+    Include the option for the host and end device to negotiate baud rates, buffer sizes, and others.
+    Have the receiver keep up with data bytes and compare it to the ROM size it was originally given
 
-> write command is sent
-    > send/recv ACK
-	  > will retry 3 times
+> write command is sent ('#' char)
+    > send/recv ACK (ASCII ACK char)
     > send ROM data size
-    > send/recv ACK
-	  > if ROM is too big then Arduino/AVR device will send a fail ACK (literal 0)
-    > begin sending ROM chunks*
+        > send/recv ACK
+        > if ROM is too big then the device will send an ASCII NAK, then the process is aborted.
+    > begin sending ROM chunks* (see note below about "chunks")
         > send 1 byte of length data
-        > send data chunk (up to arduino buffer size - 3 bytes)
+        > send 1 byte of 1's compliment length data
+        > send actual data
         > send 2 bytes of crc data
-        > arduino will send back an ACK on the crc hash
-            > if crc mismatch then try again (up to 3 times)
-        > Arduino will write the bytes to the memory IC and send a heartbeat after writing every byte
-	    > repeat until no bytes are left to send
-        > send "empty" data chunk to tell Arduino we are done
+        > Device will invert the 1's compliment length byte and make sure it equals the standard length byte
+            > If not the device will send an ASCII NAK and the chunk will be resent
+        > Device will calculate the crc16 hash on the data and compare to the sent crc hash from the uploader. If they match it will send back an ASCII ACK.
+            > if crc mismatch then try again
+        > Device will then process the data bytes (burn to ROM, save to memory or etc)
+	    > repeat chunk sending process until there are no bytes are left to send
+            > send data chunk that shows length as 0 (and an inverse byte of 0xFF to compare) to signal to the end device that the transfer is over
 
 
+## THIS IS A WORK IN PROGRESS AND DOES NOT WORK PROPERLY ##
 > read command is sent
-    > send/recv ACK
-        > will retry 3 times
+    > send/recv ACK ('?' char)
     > send amount of bytes to read
-        > ###current no ACK here, will implement soon###
     > print bytes as they come in
 
 
 
 Notes: 
-> ACK timeout after 3 tries -> abort
-
-
-
 * A "data chunk" in this context is made up 3 parts
-    Header - This is a single byte that tells the Arduino/AVR device how many data bytes to expect
-    Data   - This is the actual data that needs to be sent
+    Num of bytes - This is a single byte that tells the receiving device how many data bytes to expect
+    Num of bytes 1's compliment - Just to be extra sure we are getting the right data
+    Data - This is the actual data that needs to be sent
     Footer - This is a 16-bit CRC hash that is broken up into 2 bytes and padded to the end of the chunk
 
-    The total data chunk size is dictated by the serial buffer size of the Arduino/AVR device.
-    If the serial buffer is 64 bytes, then the Data portion of the chunk will only be 61 bytes long.
+    The total data chunk size is dictated by the serial buffer size of the receiving device. 
+    So for instance if the serial buffer is 64 bytes, then the Data portion of the chunk will only be 60 bytes long.
 
-    The serial buffer can never be over 255 bytes due to the Header only being 1 byte.
+    Most AVR devices have a 64 byte buffer while something like a 16550 only has 16.
+
+    As of now, the protocol can only utilize up to 255 bytes of serial buffer due to the data size Header only being 1 byte.
+    1 byte can only represent up to the number 255.
+
+#### Change Log ####
+
+Version 1.0     - Initial commit
+
+Version 1.1     - Added in 1's compliment of data byte length in the header for more error checking
+                  Improved notes and protocol details.
