@@ -17,7 +17,7 @@ char *port = NULL;
 char *target = NULL;
 //uint8_t printROM = 0;
 uint16_t printROMSize = 0;
-
+uint16_t printByteCount = 0;
 // Default values before config
 int baudrate = DEFAULT_BAUD_RATE;
 uint8_t bufferSize = DEFAULT_BUFFER_SIZE;
@@ -400,20 +400,16 @@ int parseArgs(int argc, char *argv[], struct bitflags *flags){
 
 // Handles receiving the ROM dump from the device and formats the output to make it easier to read
 // TODO: Maybe add a compare flag and save the ROM into a buffer for comparison later for my comparsion main() arg? 
-unsigned long getROMFromMachine(uint8_t s[], uint8_t rombuf[]){
+unsigned long getROMFromMachine(uint8_t s[], uint8_t rombuf[], uint16_t file_size){
     unsigned long i, j = 0, k;
     //unsigned long byteCounter = 0;
     //uint8_t rombuf[MAX_ROM_SIZE] = {0};
-    uint8_t timeout = 0;
 
-    while (timeout < 3){
-        while ((i = recvData(s, 0)) && (j < MAX_ROM_SIZE)){
-            for (k = 0; k < i; ++k, ++j){
-                rombuf[j] = s[k];
-            }
+    while (j < file_size){
+        i = recvData(s, 1);
+        for (k = 0; k < i; ++k, ++j){
+            rombuf[j] = s[k];
         }
-        sleep_ms(10);
-        ++timeout;
     }
     return j;
 }
@@ -503,6 +499,8 @@ int main(int argc, char *argv[]){
             if (s[0] == ACK){
                 // Break the 16-bit file_size into 2 bytes and stick then in the s[] buffer
                 u16tou8(s, file_size);
+
+                //TODO: Add an inverse byte check for this too
                 // call sendData and tell it to only send the first 2 bytes (that contain our file_size) and only send this data without adding the header and footer
                 sendData(s, 2, DATA_PACKET_FLAG_OFF);
                 // The programmer will ACK back with either the rom_size it received or a 0 if the rom_size is too big
@@ -527,7 +525,7 @@ int main(int argc, char *argv[]){
                     
                     // Start gathering bytes from the ROM file and attempt to upload them to the device
                     while ((i = getBytesFromFile(chunk, fp))){
-                        while (retransmissionCount < 3){
+                        while (retransmissionCount < 100){
                             sendData(chunk, i, DATA_PACKET_FLAG_ON);
                             recvData(s, 1);
 
@@ -571,20 +569,20 @@ int main(int argc, char *argv[]){
                     }
                     // Now that the ROM has been sent, let's send a 0 length 1 byte "chunk" to let the programmer know we are done
                     s[0] = 0;
-                    s[1] = 255; // Inverse of 0
+                    s[1] = 255; // Inverse of 0 for length check
                     // Sends a chunk with a length byte of 0, so the programmer will know there is no more data to send.
                     sendData(s, 2, DATA_PACKET_FLAG_OFF);
                     putchar('\n');
 
-                    // TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO: For some reason I have an extra ACK being gathered from the client device????
+                    // TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO:TODO: For some reason I have an extra ACK being sent from the client device????
                     // I have to grab it here or it will mess up the printRomData output... 
                     recvData(s, 1); 
 
                     // TODO: fix getROMFromMachine so where it only pulls the desired size and doesn't have to timeout to continue
                     // Now we will get the output back from the client device
                     uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
-                    unsigned long numOfBytes = getROMFromMachine(s, rombuf);
-                    printRomData(rombuf, numOfBytes);
+                    getROMFromMachine(s, rombuf, file_size);
+                    printRomData(rombuf, file_size);
                     printf("\nRetransmissions: %d", retransmissionCount);
                     free(rombuf);
 
@@ -622,8 +620,8 @@ int main(int argc, char *argv[]){
                 u16tou8(s, printROMSize);
                 sendData(s, 2, DATA_PACKET_FLAG_OFF);
                 uint8_t *rombuf = (uint8_t *) malloc(MAX_ROM_SIZE * sizeof(uint8_t));
-                unsigned long numOfBytes = getROMFromMachine(s, rombuf);
-                printRomData(rombuf, numOfBytes);
+                getROMFromMachine(s, rombuf, printByteCount);
+                printRomData(rombuf, printByteCount);
                 free(rombuf);
             }
 
