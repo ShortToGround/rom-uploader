@@ -1,5 +1,6 @@
 #include "../include/serial.h"
 #include <stdio.h>
+#include <stdint.h>
 
 void closeCOM(serial_com COM){
     #ifdef _WIN32
@@ -71,7 +72,8 @@ serial_com openCOM(char comPort[], int baudrate, int list_flag){
         char comstr[] = "/dev/";
         char port[14];
 
-        
+        speed_t baud = get_baud(baudrate);
+
        (void)list_flag; // temp measure to get my compiler to stop complaining about the unused list_flag arg
 
         sprintf(port, "%s%s", comstr, comPort);
@@ -119,8 +121,8 @@ serial_com openCOM(char comPort[], int baudrate, int list_flag){
         // Set baud rate
         // tty.c_ispeed = 250000;
         // tty.c_ospeed = 250000;
-        cfsetispeed(&tty, baudrate);
-        cfsetospeed(&tty, baudrate);
+        cfsetispeed(&tty, baud);
+        cfsetospeed(&tty, baud);
 
         // Write terminal settings to file descriptor
         if (tcsetattr(serial_port, TCSANOW, &tty) != 0) {
@@ -154,3 +156,48 @@ void listCOMPorts(void){
         printf("Sorry, the com list function doesn't work for *nix devices just yet.\n");
     #endif
 }
+
+#ifdef __linux__
+    uint32_t get_baud(int baudrate){
+        switch (baudrate) {
+        case 9600:
+            return B9600;
+        case 19200:
+            return B19200;
+        case 38400:
+            return B38400;
+        case 57600:
+            return B57600;
+        case 115200:
+            return B115200;
+        case 230400:
+            return B230400;
+        case 460800:
+            return B460800;
+        case 500000:
+            return B500000;
+        case 576000:
+            return B576000;
+        case 921600:
+            return B921600;
+        case 1000000:
+            return B1000000;
+        case 1152000:
+            return B1152000;
+        case 1500000:
+            return B1500000;
+        case 2000000:
+            return B2000000;
+        case 2500000:
+            return B2500000;
+        case 3000000:
+            return B3000000;
+        case 3500000:
+            return B3500000;
+        case 4000000:
+            return B4000000;
+        default: 
+            return B9600;
+        }
+    }
+#endif
